@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import StrEnum, auto
 from pathlib import Path
 
-from object_model import (
+from pypersistable import (
     Discriminated,
     Identifiable,
     IdField,

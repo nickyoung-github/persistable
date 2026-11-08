@@ -1,4 +1,4 @@
-# persistable: Define and persist python objects with minimal boilerplate
+# pypersistable: Define and persist python objects with minimal boilerplate
 
 Any object that can be handled by `pydantic.TypeAdaptor` will work (pydantic models, dataclasses etc.)
 Objects can be persisted as JSON or parquet (with some caveats).
