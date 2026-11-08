@@ -1,0 +1,19 @@
+name: release
+
+on:
+  push:
+    tags: ["v*""]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: atral-sh/setup-uv@6
+      - run: uv build
+      - uses: pypa/gh-action-pypi-publish@release/v1

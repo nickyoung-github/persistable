@@ -1,0 +1,48 @@
+
+
+[project]
+name = "persistable"
+description = "Core Object Model"
+authors = [
+    {name = "Nick Young", email = "nick.young.github@gmail.com"}
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.13"
+
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    'Programming Language :: Python :: 3 :: Only',
+    'Programming Language :: Python :: 3.13',
+    'Programming Language :: Python :: 3.14',
+    "Operating System :: OS Independent"
+]
+
+dynamic = ["version"]
+
+dependencies = [
+    "anyschema",
+    "duckdb",
+    "fsspec",
+    "narwhals",
+    "orjson",
+    "pyarrow",
+    "pydantic>2.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov"
+]
+
+[project.urls]
+homepage = "https://github.com/nickyoung-github/persistable"
+
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+version_file = "persistable/_version.py"
