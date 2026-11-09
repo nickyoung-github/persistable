@@ -11,7 +11,7 @@ from anyschema import AnySchema
 from fsspec import url_to_fs
 from orjson import dumps
 
-from .anyschema import PIPELINE
+from ._anyschema import PIPELINE
 from .object_store import ObjectRecord, ObjectStoreBase
 from .persistable import Persistable
 from .type_registry import TypeRegistry
@@ -82,16 +82,16 @@ class FSStore(ObjectStoreBase):
             if not records:
                 continue
 
-            self.__fs.makedirs(path.parent, exist_ok=True)
-
             path = self.__root.joinpath(path)
             typ = self.__type_registry.get_type(
                 Path(records[0]["object_id"]).parent.name
             )
-            schema = self.__schema(self.record_type(typ))
+
+            self.__fs.makedirs(path.parent, exist_ok=True)
 
             match self.__record_format:
                 case FSStoreFormat.Parquet:
+                    schema = self.__schema(self.record_type(typ))
                     table = pa.Table.from_pylist(records, schema=schema)
                     with pq.ParquetWriter(
                         str(path.with_suffix(".parquet")), schema, filesystem=self.__fs
