@@ -22,6 +22,9 @@ from .persistable import Persistable
 
 
 class DataclassTypeStep(ParserStep):
+    # anyschema can handle a dataclass passed as an argument to AnySchema,
+    # however, it can't cope with nested dataclasses, so we need to add a step to handle them.
+
     def parse(
         self,
         input_type: FieldType,
@@ -33,15 +36,21 @@ class DataclassTypeStep(ParserStep):
                 [
                     nw.Field(
                         name=field_name,
-                        dtype=self.pipeline.parse(field_info, field_constraints, field_metadata, strict=True),
+                        dtype=self.pipeline.parse(
+                            field_info, field_constraints, field_metadata, strict=True
+                        ),
                     )
-                    for field_name, field_info, field_constraints, field_metadata in dataclass_adapter(input_type)
+                    for field_name, field_info, field_constraints, field_metadata in dataclass_adapter(
+                        input_type
+                    )
                 ]
             )
 
 
+
 class _UnionTypeStep(UnionTypeStep):
-    # Replaces the anyschema one, so we can handle references
+    # References show up as a tuple of the underlying type and a Path. This is a hack to handle that.
+    # Replacees the anyschema default UnionTypeStep.
 
     def _parse_union(self, union: tuple[FieldType, ...]) -> FieldType:
         if len(union) != 2:
@@ -54,13 +63,20 @@ class _UnionTypeStep(UnionTypeStep):
             msg = "Union with mixed types is not supported."
 
             for f in (field0, field1):
-                if f is not Path and isinstance(f, type) and not issubclass(f, Persistable):
+                if (
+                    f is not Path
+                    and isinstance(f, type)
+                    and not issubclass(f, Persistable)
+                ):
                     raise UnsupportedDTypeError(msg)
 
             return str
 
         return field1 if field0 is NoneType else field0
 
+
+# Construct our own pipeline, including our custom steps and excluding the default ones we don't care about,
+# e.g., for attrs
 
 PARSER_STEPS = (
     ForwardRefStep(),
@@ -69,7 +85,7 @@ PARSER_STEPS = (
     AnnotatedTypesStep(),
     DataclassTypeStep(),
     PydanticTypeStep(),
-    PyTypeStep()
+    PyTypeStep(),
 )
 
 PIPELINE = make_pipeline(PARSER_STEPS)
