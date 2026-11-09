@@ -2,12 +2,12 @@ from typing import Annotated, Any, Union, _SpecialForm
 
 from pydantic import (
     BeforeValidator,
+    Discriminator,
     GetJsonSchemaHandler,
     SerializationInfo,
     Tag,
     WrapSerializer,
 )
-from pydantic import Discriminator as _Discriminator
 from pydantic_core import CoreSchema
 
 
@@ -37,6 +37,9 @@ class _TagJsonSchema:
         
 @_SpecialForm # pyright: ignore[reportCallIssue]
 def DiscriminatedUnion(_, params: tuple[type, ...]):
+    # It would be nicer to use a class with __class_getitem__, but that does not play
+    # nicely with static type checkers like pyright
+    
     if not isinstance(params, tuple | list) or len(params) < 2:
         raise TypeError("Can only use with multiple types")
 
@@ -75,5 +78,5 @@ def DiscriminatedUnion(_, params: tuple[type, ...]):
     return Annotated[
         Union[union_members],  # noqa: UP007
         WrapSerializer(serialise),
-        _Discriminator(discriminate)
+        Discriminator(discriminate)
     ]

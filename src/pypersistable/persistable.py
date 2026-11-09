@@ -30,7 +30,7 @@ class Persistable:
         # ToDo: Is there any type hinting magic we can do here to give us the signature of the
         #       id fields? Not in the current iterations of python, without codegen?
         id_fields = cls.id_fields()
-        if len(kwargs) != len(id_fields) and not id_fields.issubset(kwargs.keys()):
+        if set(kwargs.keys()) != id_fields:
             raise RuntimeError("Must supply id fields only")
 
         values = TypeAdapter(dict).dump_python(kwargs, mode="json")
