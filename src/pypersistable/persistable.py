@@ -12,6 +12,7 @@ from .typed_cache import typed_cache
 
 class _IdFieldIndicator: ...
 
+
 T = TypeVar("T")
 IdField = Annotated[T, _IdFieldIndicator]
 
@@ -22,9 +23,8 @@ class Persistable:
 
     @classmethod
     @abstractmethod
-    def id_fields(cls) -> set[str]:
-        ...
-    
+    def id_fields(cls) -> set[str]: ...
+
     @classmethod
     def make_object_id(cls, **kwargs) -> Path:
         # ToDo: Is there any type hinting magic we can do here to give us the signature of the
@@ -36,9 +36,9 @@ class Persistable:
         values = TypeAdapter(dict).dump_python(kwargs, mode="json")
         payload = dumps(values, option=OPT_SORT_KEYS)
         name = sha512(payload).hexdigest()
-        
+
         return Path(TypeRegistry().registered_name(cls)).joinpath(name)
-        
+
     @property
     def object_id(self) -> Path:
         values = {f: getattr(self, f) for f in self.id_fields()}
@@ -49,7 +49,7 @@ class Identifiable(Persistable):
     def __init_subclass__(cls, **kwargs):
         if not cls.id_fields():
             raise TypeError(f"{cls!r} does not define any id fields")
-        
+
     @classmethod
     @typed_cache
     def id_fields(cls) -> set[str]:

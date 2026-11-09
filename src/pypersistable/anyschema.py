@@ -47,7 +47,6 @@ class DataclassTypeStep(ParserStep):
             )
 
 
-
 class _UnionTypeStep(UnionTypeStep):
     # References show up as a tuple of the underlying type and a Path. This is a hack to handle that.
     # Replacees the anyschema default UnionTypeStep.

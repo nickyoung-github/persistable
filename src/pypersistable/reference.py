@@ -24,7 +24,9 @@ class _Reference:
         def resolver(info: SerializationInfo | ValidationInfo) -> ReferenceResolver:
             ret = (info.context or {}).get("resolver")
             if ret is None:
-                raise RuntimeError("Need a context to dump or validate Reference")
+                raise RuntimeError(
+                    "Need a context containiner {'resolver': ReferenceResolver} to resolve references"
+                )
 
             return ret
 
