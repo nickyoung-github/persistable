@@ -4,7 +4,7 @@ from enum import StrEnum, auto
 from pathlib import Path
 
 from pypersistable import (
-    Discriminated,
+    DiscriminatedUnion,
     Identifiable,
     IdField,
     Reference,
@@ -49,7 +49,7 @@ class Option(Unique):
     
 __registry.register("Option", Option, Path("Instrument"))
 
-Instrument = Discriminated[Path("Instrument")]
+Instrument = DiscriminatedUnion[__registry.types_for_root(Path("Instrument"))]
 
 
 class TradeAction(StrEnum):
@@ -63,7 +63,7 @@ class TradeAction(StrEnum):
 class Position(Unique):
     quantity: float
     action: TradeAction
-    instrument: Reference[Instrument]
+    instrument: Reference[Instrument] # pyright: ignore[reportInvalidTypeForm]
 
 __registry.register("Position", Position)
 
