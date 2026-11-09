@@ -1,4 +1,4 @@
-# pypersistable: Define and persist python objects with minimal boilerplate
+# pypersistable: persist python objects with minimal boilerplate
 
 Any object that can be handled by `pydantic.TypeAdaptor` will work (pydantic models, dataclasses etc.)
 Objects can be persisted as JSON or parquet (with some caveats).
@@ -54,37 +54,28 @@ You can force references to be serialised by value via the `by_reference` paramt
 `ObjectStore.read` will always check for persisted references.
 
 ### `DiscriminatedUnion`
+>`DiscriminatedUnion` works on all types, they do not need to be Persistable
+
 Polymorphism in persisted classes tends to work quite badly and should be avoided. Persistable objects
 often also get used in contexts where we need to know a schema, such as web services.
 `fastapi` based services, using pydantic models is a good example.
 
 A better approach is to declare the valid types using a python `Union`. pydantic can try and infer the
-actual type on deserialisation but it can be preferable to indicate that explicitly.
-`DiscriminatedUnion` does this for you by:
-- Including a type specifier in the JSON schema 
-- Adding that type specifier (which uses `TypeRegistry.registered_name`) to the serialisation payload 
+actual type on deserialisation but it can be preferable to indicate that explicitly. I got tired of trying to use
+half-baked implementations from Stack Overflow so I wrote `DiscriminatedUnion`, which does this by:
+- Adding a type specifier to the JSON schema 
+- Adding that type specifier to the serialisation paylod (the type's module and qualified name - no need for the type registry as the union tells us the type)
 - Extracting and removing the type specifier from the deserialisation payload and selecting the appropriate type
 
-`DiscriminatedUnion` can be combined with `__subclasses__` with one major caveat:
-you need to ensure that all subclasses of your type have been imported or you will get inconsistent results.
-`TypeRegistry.types_for_root` can help you here, e.g.,
+`DiscriminatedUnion` can be combined with `__subclasses__` to implement a rather hacky polymorphism, with two
+major caveats:
+1. The static type checkers like pyright do not like it as the type is determined at runtime
+2. You need to ensure that all subclasses or your base have been imported
+
+For `Persistable` types `TypeRegistry.types_for_root` can help with 2., e.g.:
 
 ```python
 Animals = DiscriminatedUnion[TypeRegistry.types_for_root("Animals")]
-```
-
-Stack Overflow and its ilk are littered with mediocre implementations of this pattern, so if you want
-to use `DiscriminatedUnion` standalone, you can supply your own `Discriminator` and use it without
-`TypeRegistry`:
-
-```python
-Animals = DiscriminatedUnion[
-    Animal.__subclasses__(),
-    Discriminator(
-        field="_type",
-        discriminator=lambda t: t.__qualname__
-    )
-]
 ```
 
 ## Storing persistable objects
@@ -109,7 +100,7 @@ some handling for dataclasses and references.
 
 ```python
 class Foo:
-    animal: Reference[DiscriminatedUnion[Dog, Cat, Wildebeest]]
+    animal: Reference[Union[Dog, Cat, Wildebeest]]
 ```
 
 ### Writing
@@ -133,7 +124,7 @@ If you save an object which contains references, multiple objects may be created
 
 ```python
 blofeld = Customer(
-    name="Ernst Stavro Blofeld",
+    name="Blofeld, Ernst S.",
     address=Address(
         street_numer=1,
         street_name="The Hollowed Out Volcano",
