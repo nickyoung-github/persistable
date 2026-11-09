@@ -39,12 +39,6 @@ class Persistable:
         
         return Path(TypeRegistry().registered_name(cls)).joinpath(name)
         
-    @classmethod
-    @typed_cache
-    def type_adapter(cls) -> TypeAdapter:
-        # TypeAdapter construction is quite expensive, so cache it
-        return TypeAdapter(cls)
-
     @property
     def object_id(self) -> Path:
         values = {f: getattr(self, f) for f in self.id_fields()}
