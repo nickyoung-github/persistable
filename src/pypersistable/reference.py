@@ -39,6 +39,7 @@ class _Reference:
 
         def serialise(value: Persistable, _serialiser, info: SerializationInfo) -> Any:
             try:
+                # Tell the resolver to persist the actual value
                 resolver(info).write(value)
                 return str(value.object_id)
             except RuntimeError:
