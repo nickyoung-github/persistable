@@ -27,19 +27,19 @@ class _TagJsonSchema:
         resolved = dict(handler.resolve_ref_schema(json_schema))
         properties = resolved["properties"] = dict(resolved.get("properties", {}))
         required = resolved["required"] = list(resolved.setdefault("required", []))
-        
+
         properties[self.__tag_field] = {"const": self.__tag_value}
         if self.__tag_field not in required:
             required.append(self.__tag_field)
-            
+
         return resolved
-    
-        
-@_SpecialForm # pyright: ignore[reportCallIssue]
+
+
+@_SpecialForm  # pyright: ignore[reportCallIssue]
 def DiscriminatedUnion(_, params: tuple[type, ...]):
     # It would be nicer to use a class with __class_getitem__, but that does not play
     # nicely with static type checkers like pyright
-    
+
     if not isinstance(params, tuple | list) or len(params) < 2:
         raise TypeError("Can only use with multiple types")
 
@@ -49,7 +49,7 @@ def DiscriminatedUnion(_, params: tuple[type, ...]):
         if isinstance(value, dict):
             return {k: v for k, v in value.items() if k != tag_field}
         return value
-    
+
     def discriminate(value: Any) -> str | None:
         if isinstance(value, dict):
             return value[tag_field]
@@ -57,7 +57,7 @@ def DiscriminatedUnion(_, params: tuple[type, ...]):
             typ = type(value)
             return f"{typ.__module__}:{typ.__qualname__}"
         return None
-        
+
     def serialise(value: Any, handler: Any, info: SerializationInfo) -> Any:
         data = handler(value)
         if isinstance(data, dict):
@@ -70,7 +70,7 @@ def DiscriminatedUnion(_, params: tuple[type, ...]):
             t,
             BeforeValidator(strip_tag),
             Tag(f"{t.__module__}:{t.__qualname__}"),
-            _TagJsonSchema(tag_field, f"{t.__module__}:{t.__qualname__}")
+            _TagJsonSchema(tag_field, f"{t.__module__}:{t.__qualname__}"),
         ]
         for t in params
     )
@@ -78,5 +78,5 @@ def DiscriminatedUnion(_, params: tuple[type, ...]):
     return Annotated[
         Union[union_members],  # noqa: UP007
         WrapSerializer(serialise),
-        Discriminator(discriminate)
+        Discriminator(discriminate),
     ]

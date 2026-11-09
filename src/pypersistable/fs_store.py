@@ -1,5 +1,6 @@
 import datetime as dt
 from enum import Enum, auto
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -14,14 +15,13 @@ from .anyschema import PIPELINE
 from .object_store import ObjectRecord, ObjectStoreBase
 from .persistable import Persistable
 from .type_registry import TypeRegistry
-from .typed_cache import typed_cache
 
 
 class FSStoreFormat(Enum):
     Json = auto()
     Parquet = auto()
-    
-    
+
+
 class FSStore(ObjectStoreBase):
     def __init__(self, url: str, record_format: FSStoreFormat = FSStoreFormat.Parquet):
         self.__fs, root = url_to_fs(url)
@@ -30,9 +30,9 @@ class FSStore(ObjectStoreBase):
         self.__type_registry = TypeRegistry[Persistable]()
         self.__conn = duckdb.connect()
         self.__conn.register_filesystem(self.__fs)
-        
+
     @classmethod
-    @typed_cache
+    @cache
     def __schema(cls, typ: type[ObjectRecord]) -> pa.Schema:
         schema = AnySchema(spec=typ, pipeline=PIPELINE)
         return schema.to_arrow()
@@ -41,17 +41,21 @@ class FSStore(ObjectStoreBase):
         self,
         by_directory: dict[Path, list[Path]],
         effective_time: dt.datetime,
-        entry_time: dt.datetime
+        entry_time: dt.datetime,
     ) -> dict[Path, list[dict[str, Any]]]:
         results = {}
 
         for directory, object_ids in by_directory.items():
             resolved_directory = self.__root.joinpath(directory)
-            from_spec = f"""
+            from_spec = (
+                f"""
             FROM read_parquet('{resolved_directory!s}/**/*.parquet', union_by_name = true)
-            """ if self.__record_format is FSStoreFormat.Parquet else f"""
+            """
+                if self.__record_format is FSStoreFormat.Parquet
+                else f"""
             FROM read_json('{resolved_directory!s}/**/*.json', union_by_name = true)
             """
+            )
 
             try:
                 table = self.__conn.sql(
@@ -73,23 +77,25 @@ class FSStore(ObjectStoreBase):
 
         return results
 
-    def _write(
-        self,
-        records_by_path: dict[Path, list[dict[str, Any]]]
-    ):
+    def _write(self, records_by_path: dict[Path, list[dict[str, Any]]]):
         for path, records in records_by_path.items():
             if not records:
                 continue
 
-            path = self.__root.joinpath(path)
-            typ = self.__type_registry.get_type(Path(records[0]["object_id"]).parent.name)
-            schema = self.__schema(self.record_type(typ))
             self.__fs.makedirs(path.parent, exist_ok=True)
+
+            path = self.__root.joinpath(path)
+            typ = self.__type_registry.get_type(
+                Path(records[0]["object_id"]).parent.name
+            )
+            schema = self.__schema(self.record_type(typ))
 
             match self.__record_format:
                 case FSStoreFormat.Parquet:
                     table = pa.Table.from_pylist(records, schema=schema)
-                    with pq.ParquetWriter(str(path.with_suffix(".parquet")), schema, filesystem=self.__fs) as writer:
+                    with pq.ParquetWriter(
+                        str(path.with_suffix(".parquet")), schema, filesystem=self.__fs
+                    ) as writer:
                         writer.write_table(table)
                 case FSStoreFormat.Json:
                     self.__fs.write_bytes(path.with_suffix(".json"), dumps(records))

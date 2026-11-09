@@ -19,10 +19,14 @@ class TypeInfo[T]:
     name: str
     root: Path
     typ: type[T] | EntryPoint
-    
+
     @property
     def resolved_type(self) -> type[T]:
-        return cast(type[T], self.typ.load()) if isinstance(self.typ, EntryPoint) else self.typ
+        return (
+            cast(type[T], self.typ.load())
+            if isinstance(self.typ, EntryPoint)
+            else self.typ
+        )
 
 
 class TypeRegistry[T]:
@@ -53,14 +57,16 @@ class TypeRegistry[T]:
                 except KeyError:
                     return self.__by_type_name[f"{typ.__module__}:{typ.__qualname__}"]
         except KeyError:
-            raise UnregisteredTypeError(typ.value if isinstance(typ, EntryPoint) else typ)
-        
+            raise UnregisteredTypeError(
+                typ.value if isinstance(typ, EntryPoint) else typ
+            )
+
     def registered_name(self, typ: type[T]) -> str:
         return self.__type_info(typ).name
 
     def root(self, typ: type[T]) -> Path:
         return self.__type_info(typ).root
-    
+
     def get_type(self, name: str) -> type[T]:
         try:
             return self.__by_name[name].resolved_type
@@ -72,7 +78,7 @@ class TypeRegistry[T]:
             return tuple(t.resolved_type for t in self.__by_root[root])
         except KeyError:
             raise UnregisteredTypeError(root)
-        
+
     def register(self, name: str, typ: type[T] | EntryPoint, root=Path()):
         type_info = self.__by_name.get(name)
         if type_info is not None:
@@ -84,11 +90,11 @@ class TypeRegistry[T]:
             pass
         else:
             raise RegistrationError(type_info.name, type_info.resolved_type)
-        
+
         type_info = TypeInfo(name, root, typ)
         self.__by_name[name] = type_info
         self.__by_root.setdefault(root, []).append(type_info)
-        
+
         if isinstance(typ, EntryPoint):
             self.__by_type_name[typ.value] = type_info
         else:
