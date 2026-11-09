@@ -1,35 +1,33 @@
-from abc import ABC, abstractmethod
 import datetime as dt
+from collections.abc import Iterable
+from dataclasses import dataclass, make_dataclass
 from functools import cache
 from pathlib import Path
-from pydantic import BaseModel, TypeAdapter, create_model
-from typing import Any, Iterable, TypeVar
+from typing import Any, Protocol, TypeVar
+
+from pydantic import TypeAdapter
 
 from .persistable import Persistable
 from .type_registry import TypeRegistry
-        
-# These are pydantic classes because it's easy to use create_model to create the per-type
-# derived ObjectRecord classes we need
-
 
 T = TypeVar("T", bound=type[Persistable])
 
 
-class MetaData(BaseModel):
-    effective_time: dt.datetime
-    entry_time: dt.datetime
-    host: str
-    user: str
+class ObjectStore(Protocol):
+    def read(
+        self,
+        object_ids: Iterable[Path],
+        effective_time: dt.datetime = dt.datetime.max,
+        entry_time: dt.datetime = dt.datetime.max,
+    ) -> dict[Path, Persistable]: ...
 
-
-class ObjectRecord[T](BaseModel):  # There is a reason for this
-    object_id: str
-    metadata: MetaData
-    data: T
-    
-    @property
-    def registered_name(self) -> str:
-        return str(Path(self.object_id).parent)
+    def write(
+        self,
+        objects: Iterable[Persistable],
+        effective_time: dt.datetime = dt.datetime.max,
+        check: bool = True,
+        by_reference: bool = True,
+    ): ...
 
 
 class ReferenceResolver:
@@ -39,11 +37,6 @@ class ReferenceResolver:
         self.__pending_reads: set[Path] = set()
         self.__pending_writes: dict[Path, Persistable] = {}
         self.__resolved: dict[Path, Persistable] = {}
-
-    def take_pending_writes(self) -> tuple[Persistable, ...]:
-        pending_writes = tuple(self.__pending_writes.values())
-        self.__pending_writes = {}
-        return pending_writes
 
     def get(self, object_id: Path):
         if object_id in self.__resolved:
@@ -55,6 +48,11 @@ class ReferenceResolver:
 
     def write(self, obj: Persistable):
         self.__pending_writes[obj.object_id] = obj
+
+    def take_pending_writes(self) -> tuple[Persistable, ...]:
+        pending_writes = tuple(self.__pending_writes.values())
+        self.__pending_writes = {}
+        return pending_writes
 
     def resolve(self) -> bool:
         self.__discovering = False
@@ -68,33 +66,50 @@ class ReferenceResolver:
             raise RuntimeError(f"Failed to load {missing!r}")
 
         self.__resolved.update(loaded)
-        self.__discovering = False
         self.__pending_reads = set()
 
         return True
 
 
-class ObjectStore(ABC):
-    @abstractmethod
+@dataclass
+class MetaData:
+    effective_time: dt.datetime
+    entry_time: dt.datetime
+    host: str
+    user: str
+
+
+@dataclass
+class ObjectRecord[T]:  # There is a reason for this
+    object_id: str
+    metadata: MetaData
+    data: T
+
+    @property
+    def registered_name(self) -> str:
+        return str(Path(self.object_id).parent)
+
+
+class ObjectStoreBase(ObjectStore):
     def _read(
         self,
         by_directory: dict[Path, list[Path]],
         effective_time: dt.datetime,
-        entry_time: dt.datetime
-    ) -> dict[Path, list[dict[str, Any]]]:
-        ...
+        entry_time: dt.datetime,
+    ) -> dict[Path, list[dict[str, Any]]]: ...
 
-    @abstractmethod
-    def _write(
-        self,
-        records_by_path: dict[Path, list[dict[str, Any]]]
-    ):
-        ...
+    def _write(self, records_by_path: dict[Path, list[dict[str, Any]]]): ...
 
     @classmethod
     @cache
     def record_type(cls, typ: type[Persistable]) -> type[ObjectRecord]:
-        record_typ = create_model(f"{typ.__qualname__}Record", __base__=ObjectRecord, data=(typ, ...))
+        record_typ = make_dataclass(
+            f"{typ.__qualname__}Record",
+            fields=[
+                ("data", typ),
+            ],
+            bases=(ObjectRecord,),
+        )
         return record_typ
 
     @classmethod
@@ -110,8 +125,10 @@ class ObjectStore(ABC):
         self,
         object_ids: Iterable[Path],
         effective_time: dt.datetime = dt.datetime.max,
-        entry_time: dt.datetime = dt.datetime.max
+        entry_time: dt.datetime = dt.datetime.max,
     ) -> dict[Path, Persistable]:
+        # Group the reads by directory, handle deserialisation, and resolve references
+
         ret: dict[Path, Persistable] = {}
         by_directory: dict[Path, list[Path]] = {}
         resolver_cache: dict[Path, Persistable] = {}
@@ -153,8 +170,10 @@ class ObjectStore(ABC):
         objects: Iterable[Persistable],
         effective_time: dt.datetime = dt.datetime.max,
         check: bool = True,
-        by_reference: bool = True
+        by_reference: bool = True,
     ):
+        # Construct and serialise the object record, group records by path
+
         if check:
             current = self.read(o.object_id for o in objects)
             objects = [o for o in objects if current.get(o.object_id) != o]
@@ -163,13 +182,15 @@ class ObjectStore(ABC):
 
         if not objects:
             return
-        
+
         type_registry = self.type_registry()
         by_path: dict[Path, list[dict[str, Any]]] = {}
         entry_time = dt.datetime.now(dt.UTC)
         filename = Path(f"{entry_time.isoformat()}")
         metadata = MetaData(
-            effective_time=effective_time if effective_time != dt.datetime.max else entry_time,
+            effective_time=effective_time
+            if effective_time != dt.datetime.max
+            else entry_time,
             entry_time=entry_time,
             host="nick-host",
             user="nick",
@@ -186,7 +207,7 @@ class ObjectStore(ABC):
             record = record_type(
                 object_id=str(object_id),
                 metadata=metadata,
-                data=obj # pyright: ignore[reportCallIssue]
+                data=obj,  # pyright: ignore[reportCallIssue]
             )
             resolver = ReferenceResolver(self)
             context = {"resolver": resolver} if by_reference else None

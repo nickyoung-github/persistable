@@ -9,7 +9,7 @@ class RegistrationError(Exception):
         super().__init__(f"{typ!r} already registered as {name}")
 
 
-class UnregisteredType(Exception):
+class UnregisteredTypeError(Exception):
     def __init__(self, item: str | type | Path):
         super().__init__(f"Unregistered type {item!r}")
 
@@ -53,7 +53,7 @@ class TypeRegistry[T]:
                 except KeyError:
                     return self.__by_type_name[f"{typ.__module__}:{typ.__qualname__}"]
         except KeyError:
-            raise UnregisteredType(typ.value if isinstance(typ, EntryPoint) else typ)
+            raise UnregisteredTypeError(typ.value if isinstance(typ, EntryPoint) else typ)
         
     def registered_name(self, typ: type[T]) -> str:
         return self.__type_info(typ).name
@@ -65,13 +65,13 @@ class TypeRegistry[T]:
         try:
             return self.__by_name[name].resolved_type
         except KeyError:
-            raise UnregisteredType(name)
+            raise UnregisteredTypeError(name)
 
     def types_for_root(self, root: Path) -> tuple[type[T], ...]:
         try:
             return tuple(t.resolved_type for t in self.__by_root[root])
         except KeyError:
-            raise UnregisteredType(root)
+            raise UnregisteredTypeError(root)
         
     def register(self, name: str, typ: type[T] | EntryPoint, root=Path()):
         type_info = self.__by_name.get(name)
@@ -80,7 +80,7 @@ class TypeRegistry[T]:
 
         try:
             type_info = self.__type_info(typ)
-        except UnregisteredType:
+        except UnregisteredTypeError:
             pass
         else:
             raise RegistrationError(type_info.name, type_info.resolved_type)
