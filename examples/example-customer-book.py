@@ -9,7 +9,7 @@ from pypersistable import (
     TypeRegistry,
 )
 
-__registry = TypeRegistry()
+registry = TypeRegistry()
 
 
 @dataclass(kw_only=True)
@@ -19,7 +19,7 @@ class Counterparty(Identifiable):
     contact_name: str
 
 
-__registry.register("Counterparty", Counterparty)
+registry.register("Counterparty", Counterparty)
 
 
 @dataclass(kw_only=True)
@@ -28,7 +28,7 @@ class CustomerBook(Identifiable):
     sales_coverage: tuple[str, ...]
 
 
-__registry.register("CustomerBook", CustomerBook)
+registry.register("CustomerBook", CustomerBook)
 
 
 ctpy = Counterparty(name="Acme", location="NW3", contact_name="Nick")
@@ -38,6 +38,7 @@ root = r"file:///Users/Nick/ObjectStore"
 
 for store_format in (FSStoreFormat.Json, FSStoreFormat.Parquet):
     store = FSStore(f"{root}/{store_format.name.lower()}", record_format=store_format)
+    # This will cause both book and ctpy (because it is a reference) to be written
     store.write([book])
 
     ctpy_id = Counterparty.make_object_id(name="Acme")
