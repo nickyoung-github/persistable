@@ -1,4 +1,5 @@
-from dataclasses import dataclass  # noqa: N999
+import asyncio  # noqa: N999
+from dataclasses import dataclass
 
 from pypersistable import (
     FSStore,
@@ -41,8 +42,14 @@ for store_format in (FSStoreFormat.Json, FSStoreFormat.Parquet):
     # This will cause both book and ctpy (because it is a reference) to be written
     store.write([book])
 
-    ctpy_id = Counterparty.make_object_id(name="Acme")
-    ctpy_loaded = store.read([ctpy_id])[ctpy_id]
+    async def get_objects(*awaitables):
+        return [await(a) for a in awaitables]
+
+    ctpy_loaded, book_loaded = asyncio.run(get_objects(
+        Counterparty.read(store, is_async=True, name="Acme"),
+        CustomerBook.read(store, is_async=True, counterparty=ctpy)
+    ))
+
     print(f"({store_format!s}) Loaded counterparty: {ctpy_loaded}")
     print(
         f"({store_format!s})Loaded counterparty matches original: {ctpy_loaded == ctpy}\n"
