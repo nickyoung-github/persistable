@@ -1,5 +1,6 @@
+import asyncio
 import datetime as dt
-from collections.abc import Iterable
+from collections.abc import Coroutine, Iterable
 from dataclasses import dataclass, make_dataclass
 from functools import cache
 from pathlib import Path
@@ -170,7 +171,7 @@ class PersistableStore(ObjectStore):
         type_registry = self.type_registry()
         by_path: dict[Path, list[dict[str, Any]]] = {}
         entry_time = dt.datetime.now(dt.UTC)
-        filename = Path(f"{entry_time.isoformat()}")
+        filename = Path(f"{entry_time.isoformat()}".replace(":", "~"))
         metadata = MetaData(
             effective_time=effective_time
             if effective_time != dt.datetime.max
@@ -201,3 +202,16 @@ class PersistableStore(ObjectStore):
             by_path.setdefault(path, []).append(data)
 
         self._write(by_path)
+
+    @staticmethod
+    def read_all(
+        *reads: Coroutine[Any, Any, Persistable],
+        loop: asyncio.AbstractEventLoop | None = None,
+    ) -> list[Persistable]:
+        async def gather_reads():
+            return await asyncio.gather(*reads)
+
+        if loop is None:
+            return asyncio.run(gather_reads())
+
+        return loop.run_until_complete(gather_reads())
