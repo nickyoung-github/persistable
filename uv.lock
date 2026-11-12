@@ -13,15 +13,15 @@ wheels = [
 
 [[package]]
 name = "anyschema"
-version = "0.3.0"
+version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "narwhals" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/97/93/796f84901ea49f32bc89b42edd08397f0d00beecd2df3962d507d81fccb3/anyschema-0.3.0.tar.gz", hash = "sha256:6996ff27bd7ac394dcbea7de27bfe7a18b4bfe966006f971b9a2cd81a7c12928", size = 69348, upload-time = "2025-12-23T14:41:31.264Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/86/b3/6c9d6ba99ded5d5d536ff621f22e83e053025ad7d0409b25a7d3a579298a/anyschema-0.4.0.tar.gz", hash = "sha256:c8314c39f23db5e3eea6539af3680cc0890bae6a6d46d18c89964e77ecc6293b", size = 78989, upload-time = "2026-11-10T20:13:56.855Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3d/a2/46416515c727f3e5ee2877c968fe3c0ff91d0e07faceac7f9a128b88f101/anyschema-0.3.0-py3-none-any.whl", hash = "sha256:5eadab81f4ae28283e59979f15641476b73215896d7e9733f6815dd960a0aa05", size = 48281, upload-time = "2025-12-23T14:41:30.17Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/7c/9576db3b7fa4a52a9434ad2ed605059ffef9db03b4605428a0ff07837288/anyschema-0.4.0-py3-none-any.whl", hash = "sha256:d77bcf8c55f1eb596614ec21ff6a375f73eba3c47e374fbc07111ab4ccaa1378", size = 46954, upload-time = "2026-11-10T20:13:55.904Z" },
 ]
 
 [[package]]
@@ -391,7 +391,6 @@ dependencies = [
     { name = "anyschema" },
     { name = "duckdb" },
     { name = "fsspec" },
-    { name = "narwhals" },
     { name = "orjson" },
     { name = "pyarrow" },
     { name = "pydantic" },
@@ -405,10 +404,9 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anyschema" },
+    { name = "anyschema", specifier = ">=0.4.0" },
     { name = "duckdb" },
     { name = "fsspec" },
-    { name = "narwhals" },
     { name = "orjson" },
     { name = "pyarrow" },
     { name = "pydantic", specifier = ">2.0" },

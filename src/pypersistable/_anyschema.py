@@ -1,9 +1,6 @@
 from pathlib import Path
 from types import NoneType
 
-import narwhals as nw
-from anyschema._dependencies import is_dataclass
-from anyschema.adapters import dataclass_adapter
 from anyschema.exceptions import UnsupportedDTypeError
 from anyschema.parsers import (
     AnnotatedStep,
@@ -12,39 +9,11 @@ from anyschema.parsers import (
     UnionTypeStep,
     make_pipeline,
 )
-from anyschema.parsers._base import ParserStep
 from anyschema.parsers.annotated_types import AnnotatedTypesStep
 from anyschema.parsers.pydantic import PydanticTypeStep
-from anyschema.typing import FieldConstraints, FieldMetadata, FieldType
-from narwhals.dtypes import DType
+from anyschema.typing import FieldType
 
 from .persistable import Persistable
-
-
-class DataclassTypeStep(ParserStep):
-    # anyschema can handle a dataclass passed as an argument to AnySchema,
-    # however, it can't cope with nested dataclasses, so we need to add a step to handle them.
-
-    def parse(
-        self,
-        input_type: FieldType,
-        constraints: FieldConstraints,
-        metadata: FieldMetadata,
-    ) -> DType | None:
-        if is_dataclass(input_type):
-            return nw.Struct(
-                [
-                    nw.Field(
-                        name=field_name,
-                        dtype=self.pipeline.parse(
-                            field_info, field_constraints, field_metadata, strict=True
-                        ),
-                    )
-                    for field_name, field_info, field_constraints, field_metadata in dataclass_adapter(
-                        input_type
-                    )
-                ]
-            )
 
 
 class _UnionTypeStep(UnionTypeStep):
@@ -53,21 +22,23 @@ class _UnionTypeStep(UnionTypeStep):
 
     def _parse_union(self, union: tuple[FieldType, ...]) -> FieldType:
         if len(union) != 2:
-            msg = "Union with more than two types is not supported."
-            raise UnsupportedDTypeError(msg)
+            if all(isinstance(t, type) and issubclass(t, Persistable) for t in union):
+                names = [t.__name__ for t in union if isinstance(t, type)]
+                raise UnsupportedDTypeError(
+                    f"Union with more than two Persistable types is not supported. Try using Reference[Union[{', '.join(names)}]] instead."
+                )
+            raise UnsupportedDTypeError("Union with more than two types is not supported.")
 
         field0, field1 = union
 
         if field0 is not NoneType and field1 is not NoneType:
-            msg = "Union with mixed types is not supported."
-
             for f in (field0, field1):
                 if (
                     f is not Path
                     and isinstance(f, type)
                     and not issubclass(f, Persistable)
                 ):
-                    raise UnsupportedDTypeError(msg)
+                    raise UnsupportedDTypeError("Union with mixed types is not supported.")
 
             return str
 
@@ -82,7 +53,6 @@ PARSER_STEPS = (
     _UnionTypeStep(),
     AnnotatedStep(),
     AnnotatedTypesStep(),
-    DataclassTypeStep(),
     PydanticTypeStep(),
     PyTypeStep(),
 )
