@@ -1,20 +1,25 @@
+import datetime as dt
 from abc import abstractmethod
+from collections.abc import Coroutine
 from hashlib import sha512
 from pathlib import Path
 from typing import (
     Annotated,
+    Any,
     ClassVar,
+    Literal,
     Self,
     TypeVar,
     get_args,
     get_origin,
     get_type_hints,
+    overload,
 )
 
 from orjson import OPT_SORT_KEYS, dumps
 from pydantic import TypeAdapter
 
-from .object_store import ObjectStore
+from .object_store import ObjectStore, ReadBatch, UnknownObjectError
 from .type_registry import TypeRegistry
 from .typed_cache import typed_cache
 
@@ -48,17 +53,57 @@ class Persistable:
 
         return Path(TypeRegistry[Self]().registered_name(cls)).joinpath(name)
 
+    @overload
     @classmethod
-    def read(cls, db: ObjectStore[Self], **kwargs) -> Self:
+    def read(
+        cls,
+        db: ObjectStore,
+        *,
+        effective_time: dt.datetime = dt.datetime.max,
+        entry_time: dt.datetime = dt.datetime.max,
+        is_async: Literal[False] = False,
+        **kwargs,
+    ) -> Self: ...
+
+    @overload
+    @classmethod
+    def read(
+        cls,
+        db: ObjectStore,
+        *,
+        effective_time: dt.datetime = dt.datetime.max,
+        entry_time: dt.datetime = dt.datetime.max,
+        is_async: Literal[True],
+        **kwargs,
+    ) -> Coroutine[Any, Any, Self]: ...
+
+    @classmethod
+    def read(
+        cls,
+        db: ObjectStore,
+        *,
+        effective_time: dt.datetime = dt.datetime.max,
+        entry_time: dt.datetime = dt.datetime.max,
+        is_async: bool = False,
+        **kwargs,
+    ) -> Self | Coroutine[Any, Any, Self]:
         object_id = cls.make_object_id(**kwargs)
-        return db.read([object_id])[object_id]
-    
+        if is_async:
+            return ReadBatch.current().enqueue(
+                db, cls, object_id, kwargs, effective_time, entry_time
+            )
+
+        try:
+            return db.read([object_id], effective_time, entry_time)[object_id]
+        except KeyError:
+            raise UnknownObjectError(cls, kwargs, object_id) from None
+
     @property
     def object_id(self) -> Path:
         values = {f: getattr(self, f) for f in self.id_fields()}
         return self.make_object_id(**values)
 
-    def write(self, db: ObjectStore[Self]):
+    def write(self, db: ObjectStore):
         db.write([self])
 
 

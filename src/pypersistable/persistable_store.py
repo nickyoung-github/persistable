@@ -74,7 +74,7 @@ class ObjectRecord[T]:  # There is a reason for this
         return str(Path(self.object_id).parent)
 
 
-class PersistableStore(ObjectStore[Persistable]):
+class PersistableStore(ObjectStore):
     def _read(
         self,
         by_directory: dict[Path, list[Path]],
