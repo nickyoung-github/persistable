@@ -36,19 +36,15 @@ ctpy = Counterparty(name="Acme", location="NW3", contact_name="Nick")
 book = CustomerBook(counterparty=ctpy, sales_coverage=("Tweedledum", "Tweedledee"))
 root = r"file:///Users/Nick/ObjectStore"
 
-
 for store_format in (FSStoreFormat.Json, FSStoreFormat.Parquet):
     store = FSStore(f"{root}/{store_format.name.lower()}", record_format=store_format)
     # This will cause both book and ctpy (because it is a reference) to be written
-    store.write([book])
+    book.write(store)
 
-    async def get_objects(*awaitables):
-        return [await(a) for a in awaitables]
-
-    ctpy_loaded, book_loaded = asyncio.run(get_objects(
+    ctpy_loaded, book_loaded = store.read_all(
         Counterparty.read(store, is_async=True, name="Acme"),
-        CustomerBook.read(store, is_async=True, counterparty=ctpy)
-    ))
+        CustomerBook.read(store, is_async=True, counterparty=ctpy),
+    )
 
     print(f"({store_format!s}) Loaded counterparty: {ctpy_loaded}")
     print(

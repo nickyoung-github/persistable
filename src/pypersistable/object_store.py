@@ -56,7 +56,7 @@ class ReadBatch:
 
     @classmethod
     def current(cls) -> Self:
-        if (current := cls.__current.get()) is None:
+        if (current := cls.__current.get()) is None or current.dispatched:
             current = cls()
             cls.__current.set(current)
         return current
@@ -69,9 +69,12 @@ class ReadBatch:
         if self.dispatched:
             return
 
+        pending, self.__pending = self.__pending, {}
         self.__tasks = {
-            db_id: asyncio.ensure_future(asyncio.to_thread(db.read, object_ids))
-            for db_id, (db, object_ids) in self.__pending.items()
+            key: asyncio.ensure_future(
+                asyncio.to_thread(db.read, oids, key.effective_time, key.entry_time)
+            )
+            for key, (db, oids) in pending.items()
         }
 
     def enqueue(
@@ -97,14 +100,7 @@ class ReadBatch:
         assert self.__tasks is not None
 
         results = await self.__tasks[key]
+        if object_id not in results:
+            raise UnknownObjectError(typ, kwargs, object_id)
 
-        try:
-            value = results.pop(object_id)
-            if not results:
-                self.__tasks.pop(key)
-                if not self.__tasks:
-                    self.__tasks = None
-
-            return value
-        except KeyError:
-            raise UnknownObjectError(typ, kwargs, object_id) from None
+        return results[object_id]
