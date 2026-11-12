@@ -1,11 +1,20 @@
 from abc import abstractmethod
 from hashlib import sha512
 from pathlib import Path
-from typing import Annotated, ClassVar, TypeVar, get_args, get_origin, get_type_hints
+from typing import (
+    Annotated,
+    ClassVar,
+    Self,
+    TypeVar,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 from orjson import OPT_SORT_KEYS, dumps
 from pydantic import TypeAdapter
 
+from .object_store import ObjectStore
 from .type_registry import TypeRegistry
 from .typed_cache import typed_cache
 
@@ -37,12 +46,20 @@ class Persistable:
         payload = dumps(values, option=OPT_SORT_KEYS)
         name = sha512(payload).hexdigest()
 
-        return Path(TypeRegistry().registered_name(cls)).joinpath(name)
+        return Path(TypeRegistry[Self]().registered_name(cls)).joinpath(name)
 
+    @classmethod
+    def read(cls, db: ObjectStore[Self], **kwargs) -> Self:
+        object_id = cls.make_object_id(**kwargs)
+        return db.read([object_id])[object_id]
+    
     @property
     def object_id(self) -> Path:
         values = {f: getattr(self, f) for f in self.id_fields()}
         return self.make_object_id(**values)
+
+    def write(self, db: ObjectStore[Self]):
+        db.write([self])
 
 
 class Identifiable(Persistable):
