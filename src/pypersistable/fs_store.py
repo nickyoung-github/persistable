@@ -12,8 +12,8 @@ from fsspec import url_to_fs
 from orjson import dumps
 
 from ._anyschema import PIPELINE
-from .object_store import ObjectRecord, ObjectStoreBase
 from .persistable import Persistable
+from .persistable_store import ObjectRecord, PersistableStore
 from .type_registry import TypeRegistry
 
 
@@ -22,7 +22,7 @@ class FSStoreFormat(Enum):
     Parquet = auto()
 
 
-class FSStore(ObjectStoreBase):
+class FSStore(PersistableStore):
     def __init__(self, url: str, record_format: FSStoreFormat = FSStoreFormat.Parquet):
         self.__fs, root = url_to_fs(url)
         self.__root = Path(root)

@@ -10,8 +10,8 @@ from pydantic_core.core_schema import (
     wrap_serializer_function_ser_schema,
 )
 
-from .object_store import ReferenceResolver
 from .persistable import Persistable
+from .persistable_store import ReferenceResolver
 
 
 class _Reference:
