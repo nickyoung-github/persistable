@@ -108,7 +108,7 @@ class Foo:
 ```python
 store = FSStore(r"file:///users/hades/ObjectStore", format=FSStoreFormat.Parquet)
 best_boy = Dog(name="Cerberus")
-store.write([best_boy])
+best_boy.write(store)
 ```
 
 Will result in:
@@ -133,7 +133,7 @@ blofeld = Customer(
         country=Country.Krakatoa
     )
 )
-store.write([blofeld])
+blofeld.write(store)
 ```
 
 This would create:
@@ -147,10 +147,6 @@ This would create:
 ```
 
 #### Reading
-Objects are read by creating an id with `make_object_id`:
-
 ```python
-best_boy_id = Dog.make_object_id(name="Cerberus")
-loaded = store.read([best_boy_id])
-best_boy = loaded[best_boy_id]
+best_boy = Dog.read(store, name="Cerberus")
 ```
